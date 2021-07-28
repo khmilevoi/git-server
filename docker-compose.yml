@@ -8,6 +8,8 @@ services:
     volumes:
       - ./repos:/repos
       - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./log:/var/log/nginx/
+      - ./log:/log
     build:
       context: .
       dockerfile: ./Dockerfile
