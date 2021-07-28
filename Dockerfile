@@ -4,28 +4,37 @@ WORKDIR /
 
 ENV TZ=Europe/Kiev
 
+COPY ./credential.sh credential.sh
+COPY ./publish.sh publish.sh
+
+RUN mkdir -p /repos
+
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 RUN apt-get update -y && \
-    apt-get install nginx git fcgiwrap -y
+    apt-get install nginx -y
 
-RUN mkdir /repos && \
-    useradd nginx && \
-    groupadd git && \
-    adduser nginx git && \
-    chown -R nginx:git /repos
+RUN groupadd git && \
+    useradd -m -g git nginx && \
+    chgrp -R git /repos && \
+    chmod -R u+rwx,g+rwx,o+r,o-wx /repos
 
-RUN apt-get update -y && \
-    apt-get install curl unzip -y && \
-    curl https://bin.equinox.io/c/4VmDzA7iaHb/ngrok-stable-linux-amd64.zip > ngrok.zip && \
-    unzip ./ngrok.zip && \
-    ./ngrok authtoken 3e88JQgCt8SXBkKWuwG2_3WqTyAuwJZ9HPkHN6yg9r
+RUN sh ./publish.sh
 
 RUN apt-get update -y && \
-    apt-get install apache2-utils -y && \
-    htpasswd -c -b /repos/htpasswd root qwe123
+    apt-get install apache2-utils -y
 
-ENTRYPOINT  /etc/init.d/fcgiwrap start && \
-            chown -R nginx:git /run/fcgiwrap.socket && \
+RUN apt-get update -y && \
+    apt-get install git -y && \
+    git config --global http.postBuffer 1048576000
+
+RUN apt-get update -y && \
+    apt-get install fcgiwrap -y
+
+ENTRYPOINT  sh ./credential.sh && \
+            /etc/init.d/fcgiwrap start && \
+            chgrp -R git /run/fcgiwrap.socket && \
+            chmod -R g+wrx /run/fcgiwrap.socket && \
             nginx && \
+            su - nginx && \
             ./ngrok http 80 --log /repos/log.txt
